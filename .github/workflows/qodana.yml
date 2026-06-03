@@ -1,4 +1,4 @@
-name: Qodana Cache Bug Reproduction
+name: Qodana Cache Fix Verification
 
 on:
   push:
@@ -13,8 +13,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Qodana Scan (BUGGY v2026.1.0)
-        uses: JetBrains/qodana-action@v2026.1.0
+      - name: Qodana Scan (FIXED @main)
+        uses: JetBrains/qodana-action@main
         with:
           args: --print-problems,--log-level,debug
         env:
