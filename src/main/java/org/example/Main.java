@@ -9,3 +9,4 @@ public class Main {
 }
 // Run 5 trigger
 // Run 7 trigger — should get cache HIT via prefix
+// Run 9 native cache hit test
