@@ -1,4 +1,4 @@
-name: QD-14035 Fix Verification (v2026.1.0 - node24)
+name: QD-14035 Fix Full (checkout@v6 + qodana-action@v2026.1.0 - all node24)
 
 on:
   push:
@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  qodana-v2026-1:
+  qodana-v2026-1-clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Qodana Scan with v2026.1.0 (uses node24 - fixed)
+      - name: Qodana Scan with v2026.1.0 (node24)
         uses: JetBrains/qodana-action@v2026.1.0
         with:
           args: --print-problems --log-level debug
