@@ -1,0 +1,21 @@
+name: Qodana Cache Bug Reproduction
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  qodana:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Qodana Scan (BUGGY v2026.1.0)
+        uses: JetBrains/qodana-action@v2026.1.0
+        with:
+          args: --print-problems,--log-level,debug
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
