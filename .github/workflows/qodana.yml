@@ -1,26 +1,21 @@
-name: Qodana Native Mode Test
+name: QD-14035 Fix Verification (v2026.1.0 - node24)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ test-QD-14035-node24-fix ]
   workflow_dispatch:
 
 jobs:
-  qodana:
+  qodana-v2026-1:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - name: Qodana Scan with v2026.1.0 (uses node24 - fixed)
+        uses: JetBrains/qodana-action@v2026.1.0
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Qodana Scan (Native Mode, FIXED @main)
-        uses: JetBrains/qodana-action@main
-        with:
-          args: --linter qodana-jvm-community --within-docker false --print-problems --log-level debug
+          args: --print-problems --log-level debug
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
