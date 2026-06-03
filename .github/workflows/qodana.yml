@@ -1,4 +1,4 @@
-name: Qodana Cache Fix Verification
+name: Qodana Native Mode Test
 
 on:
   push:
@@ -13,9 +13,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Qodana Scan (FIXED @main)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Qodana Scan (Native Mode, FIXED @main)
         uses: JetBrains/qodana-action@main
         with:
-          args: --print-problems,--log-level,debug
+          args: --linter qodana-jvm-community --within-docker false --print-problems --log-level debug
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
