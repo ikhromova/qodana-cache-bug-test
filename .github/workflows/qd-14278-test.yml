@@ -18,7 +18,7 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
       - name: Print CLI version
-        run: find /opt/hostedtoolcache/qodana -name qodana -type f | head -1 | xargs -I{} {} --version
+        run: qodana --version
 
   nightly-latest:
     name: "TC-2: nightly-version=latest"
@@ -35,7 +35,7 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
       - name: Print CLI version
-        run: find /opt/hostedtoolcache/qodana -name qodana -type f | head -1 | xargs -I{} {} --version
+        run: qodana --version
 
   nightly-specific:
     name: "TC-4: nightly-version=2026.1"
@@ -52,7 +52,7 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
       - name: Print CLI version
-        run: find /opt/hostedtoolcache/qodana -name qodana -type f | head -1 | xargs -I{} {} --version
+        run: qodana --version
 
   old-use-nightly:
     name: "TC-6: use-nightly=true (old removed param)"
@@ -69,7 +69,7 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
       - name: Print CLI version
-        run: find /opt/hostedtoolcache/qodana -name qodana -type f | head -1 | xargs -I{} {} --version
+        run: qodana --version
 
   nightly-nonexistent:
     name: "TC-7: nightly-version=9999.9 (must fail)"
