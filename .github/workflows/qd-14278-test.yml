@@ -1,0 +1,89 @@
+name: QD-14278 nightly-version tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stable-baseline:
+    name: "TC-1: stable (no nightly-version)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Qodana Scan (stable)
+        uses: JetBrains/qodana-action@main
+        with:
+          args: --print-problems --log-level debug
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+
+  nightly-latest:
+    name: "TC-2: nightly-version=latest"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Qodana Scan (nightly latest)
+        uses: JetBrains/qodana-action@main
+        with:
+          nightly-version: "latest"
+          args: --print-problems --log-level debug
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+
+  nightly-specific:
+    name: "TC-4: nightly-version=2026.1"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Qodana Scan (nightly 2026.1)
+        uses: JetBrains/qodana-action@main
+        with:
+          nightly-version: "2026.1"
+          args: --print-problems --log-level debug
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+
+  old-use-nightly:
+    name: "TC-6: use-nightly=true (old removed param)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Qodana Scan (old use-nightly param)
+        uses: JetBrains/qodana-action@main
+        with:
+          use-nightly: "true"
+          args: --print-problems --log-level debug
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+
+  nightly-nonexistent:
+    name: "TC-7: nightly-version=9999.9 (must fail)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Qodana Scan (bad nightly version)
+        id: qodana
+        continue-on-error: true
+        uses: JetBrains/qodana-action@main
+        with:
+          nightly-version: "9999.9"
+          args: --print-problems
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+      - name: Verify step failed
+        run: |
+          if [ "${{ steps.qodana.outcome }}" == "failure" ]; then
+            echo "PASS: step correctly failed for non-existent nightly version"
+          else
+            echo "FAIL: step should have failed but outcome=${{ steps.qodana.outcome }}"
+            exit 1
+          fi
