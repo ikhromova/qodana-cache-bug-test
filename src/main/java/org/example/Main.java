@@ -1,20 +1,40 @@
 package org.example;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
+import com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
+    private static final Logger log = LoggerFactory.getLogger(Main.class);
+
     public static void main(String[] args) {
-        String s = null;
-        System.out.println(s.length());
-    }
+        ImmutableList<String> items = ImmutableList.of("a", "b", "c");
+        String value = StringUtils.join(items, ", ");
+        log.info("Items: {}", value);
 
-    public static int add(int a, int b) {
-        return a + b;
-    }
+        // NumberEquality: comparing Integer objects with == instead of .equals()
+        Integer x = Integer.valueOf(args.length);
+        Integer y = Integer.valueOf(42);
+        if (x == y) {                    // triggers NumberEquality inspection (has autofix)
+            log.info("equal");
+        }
+        if (x != y) {                    // another NumberEquality
+            log.info("not equal");
+        }
 
-    public static int multiply(int a, int b) {
-        return a * b;
+        // Duplicate code block 1
+        for (String item : items) {
+            String upper = item.toUpperCase();
+            String trimmed = upper.trim();
+            log.debug("Processed: {}", trimmed);
+        }
+
+        // Duplicate code block 2
+        for (String item : items) {
+            String upper = item.toUpperCase();
+            String trimmed = upper.trim();
+            log.debug("Processed: {}", trimmed);
+        }
     }
 }
