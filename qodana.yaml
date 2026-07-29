@@ -1,5 +1,4 @@
 version: "1.0"
 projectJDK: "17"
-include:
-  - name: UnusedImport
-  - name: DuplicatedCode
+profile:
+  name: qodana.recommended
