@@ -2,13 +2,37 @@ name: QD-8704 Repro — Maven NPE at shutdown
 
 on:
   workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to scan: simple | petclinic'
+        default: 'petclinic'
+        required: false
 
 jobs:
   pre-fix-apply-fixes:
     name: "2026.1 + --apply-fixes (pre-fix)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout spring-petclinic (heavy Maven project)
+        if: ${{ github.event.inputs.project != 'simple' }}
+        uses: actions/checkout@v4
+        with:
+          repository: spring-projects/spring-petclinic
+          ref: main
+
+      - name: Checkout simple project
+        if: ${{ github.event.inputs.project == 'simple' }}
+        uses: actions/checkout@v4
+
+      - name: Add qodana.yaml (petclinic)
+        if: ${{ github.event.inputs.project != 'simple' }}
+        run: |
+          cat > qodana.yaml << 'EOF'
+          version: "1.0"
+          projectJDK: "17"
+          profile:
+            name: qodana.recommended
+          EOF
 
       - name: Run qodana-jvm:2026.1 with --apply-fixes
         run: |
@@ -26,43 +50,46 @@ jobs:
         if: always()
         run: |
           IDEALOG="results/log/idea.log"
-          echo "### QD-8704 NPE check — 2026.1 + --apply-fixes" >> $GITHUB_STEP_SUMMARY
+          echo "### QD-8704 NPE check (project=${{ github.event.inputs.project || 'petclinic' }}, 2026.1 + --apply-fixes)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
+          NPE_FOUND=false
           if grep -q "MavenServerConnectorImpl" qodana-stdout.log 2>/dev/null; then
+            NPE_FOUND=true
             echo "**:red_circle: NPE FOUND in Docker stdout!**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             grep -B1 -A12 "MavenServerConnectorImpl" qodana-stdout.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-          elif [ -f "$IDEALOG" ] && grep -q "MavenServerConnectorImpl" "$IDEALOG"; then
+          fi
+          if [ -f "$IDEALOG" ] && grep -q "MavenServerConnectorImpl" "$IDEALOG"; then
+            NPE_FOUND=true
             echo "**:red_circle: NPE FOUND in idea.log!**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -B1 -A12 "MavenServerConnectorImpl" "$IDEALOG" >> $GITHUB_STEP_SUMMARY
+            grep -B2 -A15 "MavenServerConnectorImpl" "$IDEALOG" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-          else
-            echo ":white_check_mark: No MavenServerConnectorImpl NPE found" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$NPE_FOUND" = false ]; then
+            echo ":white_check_mark: No MavenServerConnectorImpl NPE found this run" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### SEVERE entries" >> $GITHUB_STEP_SUMMARY
+          echo "### SEVERE count" >> $GITHUB_STEP_SUMMARY
           SEVERE_COUNT=$(grep -c "SEVERE" "${IDEALOG}" 2>/dev/null || echo 0)
-          echo "idea.log SEVERE count: **${SEVERE_COUNT}**" >> $GITHUB_STEP_SUMMARY
-          grep "SEVERE" "${IDEALOG}" 2>/dev/null | head -5 >> $GITHUB_STEP_SUMMARY || true
+          echo "SEVERE entries: **${SEVERE_COUNT}**" >> $GITHUB_STEP_SUMMARY
+          [ "$SEVERE_COUNT" -gt 0 ] && grep "SEVERE" "${IDEALOG}" | head -5 >> $GITHUB_STEP_SUMMARY || true
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Remote process termination timeline" >> $GITHUB_STEP_SUMMARY
+          echo "### Shutdown timeline (key)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          { grep "Remote process" "${IDEALOG}" 2>/dev/null; \
-            grep "IDE SHUTDOWN" "${IDEALOG}" 2>/dev/null; \
-            grep "Project.*disposed" "${IDEALOG}" 2>/dev/null | tail -1; } \
-            | sort >> $GITHUB_STEP_SUMMARY
+          { grep "Project.*disposed.*removing\|Remote process term\|IDE SHUTDOWN" "${IDEALOG}" 2>/dev/null; } \
+            | tail -5 >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-2026.1-apply-fixes
+          name: "logs-2026.1-apply-fixes-${{ github.event.inputs.project || 'petclinic' }}"
           path: |
             qodana-stdout.log
             results/log/idea.log
@@ -71,7 +98,26 @@ jobs:
     name: "2026.1 plain scan (pre-fix)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout spring-petclinic
+        if: ${{ github.event.inputs.project != 'simple' }}
+        uses: actions/checkout@v4
+        with:
+          repository: spring-projects/spring-petclinic
+          ref: main
+
+      - name: Checkout simple project
+        if: ${{ github.event.inputs.project == 'simple' }}
+        uses: actions/checkout@v4
+
+      - name: Add qodana.yaml (petclinic)
+        if: ${{ github.event.inputs.project != 'simple' }}
+        run: |
+          cat > qodana.yaml << 'EOF'
+          version: "1.0"
+          projectJDK: "17"
+          profile:
+            name: qodana.recommended
+          EOF
 
       - name: Run qodana-jvm:2026.1 plain scan
         run: |
@@ -88,43 +134,32 @@ jobs:
         if: always()
         run: |
           IDEALOG="results/log/idea.log"
-          echo "### QD-8704 NPE check — 2026.1 plain scan" >> $GITHUB_STEP_SUMMARY
+          echo "### QD-8704 NPE check (project=${{ github.event.inputs.project || 'petclinic' }}, 2026.1 plain)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if grep -q "MavenServerConnectorImpl" qodana-stdout.log 2>/dev/null; then
-            echo "**:red_circle: NPE FOUND in Docker stdout!**" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -B1 -A12 "MavenServerConnectorImpl" qodana-stdout.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          elif [ -f "$IDEALOG" ] && grep -q "MavenServerConnectorImpl" "$IDEALOG"; then
-            echo "**:red_circle: NPE FOUND in idea.log!**" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -B1 -A12 "MavenServerConnectorImpl" "$IDEALOG" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          else
-            echo ":white_check_mark: No MavenServerConnectorImpl NPE found" >> $GITHUB_STEP_SUMMARY
-          fi
+          NPE_FOUND=false
+          for F in qodana-stdout.log "${IDEALOG}"; do
+            if [ -f "$F" ] && grep -q "MavenServerConnectorImpl" "$F" 2>/dev/null; then
+              NPE_FOUND=true
+              echo "**:red_circle: NPE FOUND in ${F}!**" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -B2 -A15 "MavenServerConnectorImpl" "$F" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          [ "$NPE_FOUND" = false ] && echo ":white_check_mark: No NPE this run" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### SEVERE entries" >> $GITHUB_STEP_SUMMARY
-          SEVERE_COUNT=$(grep -c "SEVERE" "${IDEALOG}" 2>/dev/null || echo 0)
-          echo "idea.log SEVERE count: **${SEVERE_COUNT}**" >> $GITHUB_STEP_SUMMARY
-          grep "SEVERE" "${IDEALOG}" 2>/dev/null | head -5 >> $GITHUB_STEP_SUMMARY || true
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Remote process termination timeline" >> $GITHUB_STEP_SUMMARY
+          echo "### Shutdown timeline" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          { grep "Remote process" "${IDEALOG}" 2>/dev/null; \
-            grep "IDE SHUTDOWN" "${IDEALOG}" 2>/dev/null; \
-            grep "Project.*disposed" "${IDEALOG}" 2>/dev/null | tail -1; } \
-            | sort >> $GITHUB_STEP_SUMMARY
+          grep "Project.*disposed.*removing\|Remote process term\|IDE SHUTDOWN" "${IDEALOG}" 2>/dev/null | tail -5 >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-2026.1-plain
+          name: "logs-2026.1-plain-${{ github.event.inputs.project || 'petclinic' }}"
           path: |
             qodana-stdout.log
             results/log/idea.log
