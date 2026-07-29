@@ -1,5 +1,7 @@
 package org.example;
 
+import java.util.List; // unused — fixable by UNUSED_IMPORT (triggers --apply-fixes scenario)
+
 public class Main {
     public static void main(String[] args) {
         String s = null;
@@ -7,6 +9,3 @@ public class Main {
         System.out.println(s.length());
     }
 }
-// Run 5 trigger
-// Run 7 trigger — should get cache HIT via prefix
-// Run 9 native cache hit test
