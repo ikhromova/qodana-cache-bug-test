@@ -1,0 +1,73 @@
+name: QD-8704 Repro — Maven NPE at shutdown
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pre-fix-2026-1:
+    name: qodana-jvm:2026.1 + --apply-fixes (pre-fix, expect NPE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run qodana-jvm:2026.1 with --apply-fixes
+        run: |
+          mkdir -p results
+          chmod -R a+rwX results
+          docker run --rm \
+            -v "$PWD:/data/project" \
+            -v "$PWD/results:/data/results" \
+            -e QODANA_TOKEN="${{ secrets.QODANA_TOKEN }}" \
+            jetbrains/qodana-jvm:2026.1 \
+            --apply-fixes \
+            2>&1 | tee qodana-stdout.log
+        continue-on-error: true
+
+      - name: Check for QD-8704 NPE
+        run: |
+          echo "### QD-8704 NPE check (MavenServerConnectorImpl)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          FOUND=false
+
+          if grep -q "MavenServerConnectorImpl" qodana-stdout.log 2>/dev/null; then
+            FOUND=true
+            echo "**✅ REPRODUCED** in Docker stdout" >> $GITHUB_STEP_SUMMARY
+            printf '```\n' >> $GITHUB_STEP_SUMMARY
+            grep -B1 -A8 "MavenServerConnectorImpl" qodana-stdout.log >> $GITHUB_STEP_SUMMARY
+            printf '```\n' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          IDEALOG="results/log/idea.log"
+          if [ -f "$IDEALOG" ] && grep -q "MavenServerConnectorImpl" "$IDEALOG"; then
+            FOUND=true
+            echo "**✅ REPRODUCED** in idea.log" >> $GITHUB_STEP_SUMMARY
+            printf '```\n' >> $GITHUB_STEP_SUMMARY
+            grep -B1 -A8 "MavenServerConnectorImpl" "$IDEALOG" >> $GITHUB_STEP_SUMMARY
+            printf '```\n' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$FOUND" = "false" ]; then
+            echo "**❌ NOT FOUND** — race condition may not have fired (timing-sensitive, try re-run)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### All SEVERE entries in Docker stdout" >> $GITHUB_STEP_SUMMARY
+          printf '```\n' >> $GITHUB_STEP_SUMMARY
+          grep "SEVERE" qodana-stdout.log 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "(none)" >> $GITHUB_STEP_SUMMARY
+          printf '```\n' >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Remote process termination (code 143)" >> $GITHUB_STEP_SUMMARY
+          printf '```\n' >> $GITHUB_STEP_SUMMARY
+          { grep "Remote process terminated" qodana-stdout.log 2>/dev/null; grep "Remote process terminated" results/log/idea.log 2>/dev/null; } | head -10 >> $GITHUB_STEP_SUMMARY || echo "(none)" >> $GITHUB_STEP_SUMMARY
+          printf '```\n' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qodana-2026.1-apply-fixes-logs
+          path: |
+            qodana-stdout.log
+            results/log/idea.log
