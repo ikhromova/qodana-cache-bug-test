@@ -1,11 +1,20 @@
 package org.example;
 
-import java.util.List; // unused — fixable by UNUSED_IMPORT (triggers --apply-fixes scenario)
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) {
         String s = null;
-        // Intentional NPE-risk for Qodana to find
         System.out.println(s.length());
+    }
+
+    public static int add(int a, int b) {
+        return a + b;
+    }
+
+    public static int multiply(int a, int b) {
+        return a * b;
     }
 }
