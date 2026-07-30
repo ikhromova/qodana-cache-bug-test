@@ -2,10 +2,7 @@
 # Race condition: Maven process terminated after Application disposed.
 # Fix: QDJVM-263.2340 (qodana-jvm:2026.3-nightly or later).
 #
-# HOW TO USE:
-#   workflow_dispatch → runs pre-fix (2026.1) and post-fix (2026.3-nightly) side by side.
-#   NPE check: looks for "MavenServerConnectorImpl" in idea.log / Docker stdout.
-#   The race is timing-sensitive; run multiple times if NPE not seen first try.
+# project.open.type=Maven is required when project has both pom.xml and build.gradle (QD-11542).
 
 name: QD-8704 Repro — Maven NPE at shutdown
 
@@ -37,6 +34,7 @@ jobs:
             -e QODANA_TOKEN="${{ secrets.QODANA_TOKEN }}" \
             "jetbrains/qodana-jvm:${{ github.event.inputs.image_prefx || '2026.1' }}" \
             --apply-fixes \
+            --property project.open.type=Maven \
             2>&1 | tee qodana-stdout.log
         continue-on-error: true
 
@@ -88,27 +86,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to JetBrains registry (for nightly builds)
-        # QODANA_JB_TOKEN secret must be set if using registry.jetbrains.team images.
-        # For public Docker Hub tags (e.g. 2026.2), skip this step.
-        run: |
-          TAG="${{ github.event.inputs.image_postfix || '2026.3-nightly' }}"
-          if [[ "$TAG" == *"nightly"* ]]; then
-            echo "Note: nightly builds require JetBrains registry. Set QODANA_JB_TOKEN secret if needed."
-            echo "Skipping registry login (will use Docker Hub fallback if available)"
-          fi
-
       - name: Run post-fix build with --apply-fixes
         run: |
           mkdir -p results && chmod -R a+rwX results
           TAG="${{ github.event.inputs.image_postfix || '2026.3-nightly' }}"
-          # Try JetBrains registry first (nightly), fall back to Docker Hub
           IMAGE="registry.jetbrains.team/p/sa/containers/qodana-jvm:${TAG}"
-          if docker pull "$IMAGE" 2>/dev/null; then
-            echo "Using JB registry image: $IMAGE"
-          else
+          if ! docker pull "$IMAGE" 2>/dev/null; then
             IMAGE="jetbrains/qodana-jvm:${TAG}"
-            echo "Using Docker Hub image: $IMAGE"
           fi
           docker run --rm \
             -v "$PWD:/data/project" \
@@ -116,6 +100,7 @@ jobs:
             -e QODANA_TOKEN="${{ secrets.QODANA_TOKEN }}" \
             "$IMAGE" \
             --apply-fixes \
+            --property project.open.type=Maven \
             2>&1 | tee qodana-stdout.log
         continue-on-error: true
 
@@ -139,8 +124,8 @@ jobs:
           done
           [ "$NPE_FOUND" = false ] && echo ":white_check_mark: **FIX VERIFIED** — No NPE in post-fix build" >> $GITHUB_STEP_SUMMARY
 
-          echo "" >> $GITHUB_STEP_SUMMARY
           SEVERE=$(grep -c "SEVERE" "${IDEALOG}" 2>/dev/null || echo 0)
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "SEVERE count: **${SEVERE}**" >> $GITHUB_STEP_SUMMARY
 
       - uses: actions/upload-artifact@v4
