@@ -1,0 +1,29 @@
+name: Qodana - use-installed-cli test
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  qodana:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Qodana CLI nightly
+        run: curl -fsSL https://jb.gg/qodana-cli/install | bash -s -- v2026.3-nightly
+
+      - name: Qodana Scan
+        uses: JetBrains/qodana-action@main
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+        with:
+          use-installed-cli: true
